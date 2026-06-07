@@ -4,7 +4,8 @@
 
 Historical bid-vs-actual report for work orders that entered Innergy workflow steps 17–19 during a date range — even if those WOs have since moved past those steps. Designed for pipeline snapshots: "which jobs were in Staging during May?"
 
-**Live URL:** https://step-activity-report-production.up.railway.app
+**Live URL:** https://step-activity-report-production.up.railway.app  
+**GitHub:** github.com/stlbill/StepActivityReport
 
 ## Running Locally
 
