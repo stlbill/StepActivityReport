@@ -790,7 +790,7 @@ async function fetchConcurrent(items, fn, limit) {
 refreshBtn.addEventListener('click', loadReport);
 
 async function loadReport() {
-  if (!apiKey) { setStatus('Enter your API key first.'); return; }
+  if (!authEnabled && !apiKey) { setStatus('Enter your API key first.'); return; }
 
   refreshBtn.disabled = true; refreshBtn.innerHTML = '<span class="spinner"></span>Loading…';
   rawRows = []; allProjects = []; dmCache = new Map();
