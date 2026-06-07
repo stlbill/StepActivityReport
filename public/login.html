@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Step Activity Report — Sign In</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13px;
+      background: #f0f2f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: #fff;
+      border-radius: 6px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.12);
+      width: 340px;
+      overflow: hidden;
+    }
+    .card-header {
+      background: #1b3a6b;
+      color: #fff;
+      padding: 18px 24px 14px;
+    }
+    .card-header h1 { font-size: 15px; font-weight: 700; letter-spacing: .3px; }
+    .card-header p  { font-size: 11px; opacity: .75; margin-top: 3px; }
+    .gold-line { height: 3px; background: #c8a84b; }
+    form { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    label { font-size: 11px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .4px; }
+    input {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input:focus { border-color: #1b3a6b; }
+    .error-msg {
+      background: #fff3f3;
+      border: 1px solid #f5b8b8;
+      color: #b00020;
+      border-radius: 4px;
+      padding: 8px 10px;
+      font-size: 12px;
+      display: none;
+    }
+    .error-msg.visible { display: block; }
+    button[type="submit"] {
+      background: #1b3a6b;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    button[type="submit"]:hover { background: #2d5a8e; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <h1>Step Activity Report</h1>
+      <p>Sign in to continue</p>
+    </div>
+    <div class="gold-line"></div>
+    <form method="POST" action="/login">
+      <div class="error-msg" id="errMsg">Incorrect username or password.</div>
+      <div class="field">
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" autocomplete="username" autofocus required>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit">Sign In</button>
+    </form>
+  </div>
+  <script>
+    if (new URLSearchParams(location.search).get('error')) {
+      document.getElementById('errMsg').classList.add('visible');
+    }
+  </script>
+</body>
+</html>

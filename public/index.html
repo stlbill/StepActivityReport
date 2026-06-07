@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Step Activity Report</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ── Setup strip ── -->
+  <div id="setup-strip">
+    <span class="app-title">Step Activity Report</span>
+
+    <div class="setup-controls">
+
+      <div class="control-group" id="key-group">
+        <input type="password" id="api-key-input" placeholder="Innergy API Key" autocomplete="off" spellcheck="false">
+        <button id="save-key-btn">Save Key</button>
+        <span id="key-status"></span>
+      </div>
+
+      <div class="control-group">
+        <label class="ctrl-label">Steps</label>
+        <input type="number" id="step-from" value="17" min="1" max="99">
+        <span class="ctrl-label">–</span>
+        <input type="number" id="step-to" value="19" min="1" max="99">
+      </div>
+
+      <div class="control-group">
+        <label class="date-label">From <input type="date" id="date-from"></label>
+        <label class="date-label">To <input type="date" id="date-to"></label>
+      </div>
+
+      <div class="control-group">
+        <input type="text" id="search-input" placeholder="Search project / WO…" autocomplete="off">
+      </div>
+
+      <div class="control-group">
+        <button id="refresh-btn" class="btn-green" disabled>Load Report</button>
+        <button id="reset-btn" class="btn-secondary">Reset</button>
+        <button id="signout-btn" class="btn-secondary" hidden>Sign Out</button>
+        <div class="dropdown-wrap">
+          <button id="cols-btn" class="btn-secondary">Columns ▾</button>
+          <div id="cols-dropdown" class="dropdown-panel">
+            <div id="cols-list"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Filter strip (built after load) ── -->
+  <div id="filter-strip" hidden></div>
+
+  <!-- ── Status bar ── -->
+  <div id="status-bar"></div>
+
+  <!-- ── View toggle ── -->
+  <div id="view-bar" hidden>
+    <button id="btn-summary" class="view-btn active">Summary</button>
+    <button id="btn-detail" class="view-btn">Detail</button>
+  </div>
+
+  <!-- ── Table area ── -->
+  <div id="table-wrap">
+    <p id="no-data-msg">Enter your API key, set a step range and date range, then click Load Report.</p>
+    <div id="dashboard" hidden></div>
+    <div id="table-scroll" hidden>
+      <table id="main-table">
+        <colgroup id="main-colgroup"></colgroup>
+        <thead id="main-thead"></thead>
+        <tbody id="main-tbody"></tbody>
+        <tfoot id="main-tfoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
