@@ -227,7 +227,7 @@ function loadPrefs() {
     if (p.colWidths && typeof p.colWidths === 'object') colWidths = p.colWidths;
     if (p.sortCol && COL_MAP[p.sortCol]) sortCol = p.sortCol;
     if (typeof p.sortDir === 'number')   sortDir  = p.sortDir;
-  } catch {}
+  } catch { /* ignore invalid saved prefs */ }
 }
 
 // ── Project field extraction ──────────────────────────────────────────────────
@@ -862,7 +862,7 @@ async function loadReport() {
           row.expActual          = extractCurrency(wo.ActualExpensesCost);
           Object.assign(row.wo, wo); // merge full WO data (Name, Id, etc.)
         }
-      } catch {}
+      } catch { /* ignore WO financial fetch failures */ }
     }, 8);
 
     // 5. Render
@@ -883,7 +883,6 @@ async function loadReport() {
 }
 
 // ── API Key ───────────────────────────────────────────────────────────────────
-const keyGroup   = document.getElementById('key-group');
 const signoutBtn = document.getElementById('signout-btn');
 
 saveKeyBtn.addEventListener('click', async () => {
@@ -939,7 +938,7 @@ buildColsDropdown();
       } else {
         keyStatus.textContent = 'Enter your Innergy API key';
       }
-    } catch {}
+    } catch { /* ignore key-status fetch failure */ }
   } else {
     if (apiKey) { apiKeyInput.value = apiKey; keyStatus.textContent = '✓ Key loaded'; refreshBtn.disabled = false; }
   }
