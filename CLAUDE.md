@@ -132,10 +132,11 @@ Toggle with Summary / Detail buttons shown after load.
 - **Reorder columns** — drag column header left or right
 - **Resize columns** — drag right edge of header; double-click handle to reset
 - **Columns ▾** — show/hide individual columns
-- **Filter strip** — dropdowns for Type, PM, Estimator, State, Labor Type (built after load)
+- **Filter strip** — dropdowns for Project, Type, PM, Estimator, State, Labor Type (built after load). Labor Type filter excludes WOs with no matching labor items, keeping WO count and Total Bid consistent with the labor card.
 - **Search** — live text filter on project name/number and WO name/number
+- **Exclude** — live text filter that hides WOs/projects whose name or number matches; sits next to Search in the top bar. Cleared by Reset.
 - **Expand row** — click any WO row to see per-labor-type breakdown
-- **Reset** — clears search text and date inputs (does not reload data)
+- **Reset** — clears Search, Exclude, and date inputs (does not reload data or reset filter strip dropdowns)
 
 ## Column Preferences
 
