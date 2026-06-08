@@ -177,6 +177,7 @@ let selectedEstimators = null;
 let selectedStates     = null;
 let selectedTypes      = null;
 let selectedLaborTypes = null;
+let selectedProjects   = null;
 
 const expandedRows = new Set();
 let viewMode = 'summary';
@@ -190,6 +191,7 @@ const stepToInput   = document.getElementById('step-to');
 const dateFrom      = document.getElementById('date-from');
 const dateTo        = document.getElementById('date-to');
 const searchInput   = document.getElementById('search-input');
+const excludeInput  = document.getElementById('exclude-input');
 const refreshBtn    = document.getElementById('refresh-btn');
 const resetBtn      = document.getElementById('reset-btn');
 const colsBtn       = document.getElementById('cols-btn');
@@ -460,17 +462,19 @@ function makeBreakdownTable(title, rows, keyFn) {
 
 // ── Filters ───────────────────────────────────────────────────────────────────
 function applyFilters(rows) {
-  const q = searchInput.value.trim().toLowerCase();
+  const q  = searchInput.value.trim().toLowerCase();
+  const ex = excludeInput.value.trim().toLowerCase();
   return rows.filter(r => {
-    if (q) {
-      const proj = (r.project.Number+' '+r.project.Name).toLowerCase();
-      const wo   = (r.wo.Number+' '+(r.wo.Name||'')).toLowerCase();
-      if (!proj.includes(q) && !wo.includes(q)) return false;
-    }
-    if (selectedPMs        && !selectedPMs.has(r.pm))               return false;
-    if (selectedEstimators && !selectedEstimators.has(r.estimator)) return false;
-    if (selectedStates     && !selectedStates.has(r.state))         return false;
-    if (selectedTypes      && r.woType && !selectedTypes.has(r.woType)) return false;
+    const projStr = (r.project.Number+' '+r.project.Name).toLowerCase();
+    const woStr   = (r.wo.Number+' '+(r.wo.Name||'')).toLowerCase();
+    if (q  && !projStr.includes(q)  && !woStr.includes(q))  return false;
+    if (ex && (projStr.includes(ex) || woStr.includes(ex)))  return false;
+    if (selectedProjects   && !selectedProjects.has(r.project.Name))             return false;
+    if (selectedPMs        && !selectedPMs.has(r.pm))                            return false;
+    if (selectedEstimators && !selectedEstimators.has(r.estimator))              return false;
+    if (selectedStates     && !selectedStates.has(r.state))                      return false;
+    if (selectedTypes      && r.woType && !selectedTypes.has(r.woType))          return false;
+    if (selectedLaborTypes && !r.laborItems.some(i => selectedLaborTypes.has(i.Name))) return false;
     return true;
   });
 }
@@ -709,10 +713,11 @@ colsBtn.addEventListener('click', e => {
 function buildFilterStrip() {
   filterStrip.innerHTML = '';
   const defs = [
-    { label:'Type',       values:[...new Set(rawRows.map(r=>r.woType).filter(Boolean))].sort(),    setter:v=>{selectedTypes=v;} },
-    { label:'PM',         values:[...new Set(rawRows.map(r=>r.pm).filter(Boolean))].sort(),         setter:v=>{selectedPMs=v;} },
-    { label:'Estimator',  values:[...new Set(rawRows.map(r=>r.estimator).filter(Boolean))].sort(),  setter:v=>{selectedEstimators=v;} },
-    { label:'State',      values:[...new Set(rawRows.map(r=>r.state).filter(Boolean))].sort(),      setter:v=>{selectedStates=v;} },
+    { label:'Project',    values:[...new Set(rawRows.map(r=>r.project.Name).filter(Boolean))].sort(),  setter:v=>{selectedProjects=v;} },
+    { label:'Type',       values:[...new Set(rawRows.map(r=>r.woType).filter(Boolean))].sort(),        setter:v=>{selectedTypes=v;} },
+    { label:'PM',         values:[...new Set(rawRows.map(r=>r.pm).filter(Boolean))].sort(),            setter:v=>{selectedPMs=v;} },
+    { label:'Estimator',  values:[...new Set(rawRows.map(r=>r.estimator).filter(Boolean))].sort(),     setter:v=>{selectedEstimators=v;} },
+    { label:'State',      values:[...new Set(rawRows.map(r=>r.state).filter(Boolean))].sort(),         setter:v=>{selectedStates=v;} },
     { label:'Labor Type', values:[...new Set(rawRows.flatMap(r=>r.laborItems.map(i=>i.Name).filter(Boolean)))].sort(), setter:v=>{selectedLaborTypes=v;} },
   ];
   for (const f of defs) {
@@ -794,7 +799,7 @@ async function loadReport() {
 
   refreshBtn.disabled = true; refreshBtn.innerHTML = '<span class="spinner"></span>Loading…';
   rawRows = []; allProjects = []; dmCache = new Map();
-  selectedPMs = selectedEstimators = selectedStates = selectedTypes = selectedLaborTypes = null;
+  selectedPMs = selectedEstimators = selectedStates = selectedTypes = selectedLaborTypes = selectedProjects = null;
   expandedRows.clear();
   filterStrip.hidden = true; filterStrip.innerHTML = '';
   tableScroll.hidden = true; noDataMsg.hidden = false; noDataMsg.textContent = 'Loading…';
@@ -906,9 +911,10 @@ signoutBtn.addEventListener('click', () => {
 });
 
 // ── Live search + reset ───────────────────────────────────────────────────────
-searchInput.addEventListener('input', () => { if (rawRows.length) renderCurrentView(); });
+searchInput.addEventListener('input',  () => { if (rawRows.length) renderCurrentView(); });
+excludeInput.addEventListener('input', () => { if (rawRows.length) renderCurrentView(); });
 resetBtn.addEventListener('click', () => {
-  searchInput.value = ''; dateFrom.value = ''; dateTo.value = '';
+  searchInput.value = ''; excludeInput.value = ''; dateFrom.value = ''; dateTo.value = '';
   if (rawRows.length) renderCurrentView();
   else noDataMsg.textContent = 'Enter your API key, set a step range and date range, then click Load Report.';
 });
