@@ -41,6 +41,8 @@ Same pattern as Job Status Report. See `../CLAUDE.md` for full auth docs.
 railway up --service step-activity-report
 ```
 
+**Important:** There are two similarly-named Railway projects — `step-activity-report` (correct) and `step-activity` (wrong/empty, can be deleted). Run `railway status` before deploying to confirm the linked project shows the URL `step-activity-report-production.up.railway.app`. If it shows `step-activity` with no URL, re-link: `railway link -p step-activity-report`.
+
 **Environment variables:**
 
 | Variable | Value |
