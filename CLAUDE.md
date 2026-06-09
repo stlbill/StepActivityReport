@@ -143,12 +143,14 @@ Toggle with Summary / Detail buttons shown after load.
 
 ## Shared Components
 
-`server.js` serves `../shared/` at `/shared`, so the browser can load:
+`server.js` serves `./shared/` at `/shared`, so the browser can load:
 
 | File | Purpose |
 |---|---|
 | `shared/filter-builder.js` | `FilterBuilder` class — nested group filter dialog |
 | `shared/filter-builder.css` | Styles for the filter dialog |
+
+The `shared/` directory is committed to this repo (not pulled from the monorepo root). When `reports-platform/shared/` files change, copy them here and commit.
 
 `FilterBuilder.buildFields(rawRows)` builds field definitions (PM, Estimator, State, Type, Project) from loaded data. Fields, operators, and values are all chip-based dropdowns. `onApply` returns `{ rootGroup, filterFn }`.
 
