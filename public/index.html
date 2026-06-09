@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Step Activity Report</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="/shared/filter-builder.css">
 </head>
 <body>
 
@@ -40,6 +41,7 @@
       <div class="control-group">
         <button id="refresh-btn" class="btn-green" disabled>Load Report</button>
         <button id="reset-btn" class="btn-secondary">Reset</button>
+        <button id="filter-btn" class="btn-secondary" hidden>Filter ▾</button>
         <button id="signout-btn" class="btn-secondary" hidden>Sign Out</button>
         <div class="dropdown-wrap">
           <button id="cols-btn" class="btn-secondary">Columns ▾</button>
@@ -78,6 +80,7 @@
     </div>
   </div>
 
+  <script src="/shared/filter-builder.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

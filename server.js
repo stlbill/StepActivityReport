@@ -72,6 +72,7 @@ app.use((req, res, next) => {
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/shared', express.static(path.join(__dirname, '..', 'shared')));
 
 // ── Auth API routes ────────────────────────────────────────────────────────────
 app.get('/api/auth-status', (req, res) => res.json({ authEnabled: AUTH_ENABLED }));

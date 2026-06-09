@@ -157,7 +157,7 @@ const COL_MAP = Object.fromEntries(ALL_COLS.map(c => [c.key, c]));
 const DEFAULT_COL_ORDER = ALL_COLS.map(c => c.key);
 
 // ── State ─────────────────────────────────────────────────────────────────────
-const PREFS_VERSION   = 7;
+const PREFS_VERSION   = 8;
 const PREFS_KEY       = 'sar_prefs';
 const API_KEY_STORAGE = 'sar_api_key';
 
@@ -169,8 +169,8 @@ let dmCache     = new Map(); // projectId → WO[] from dateManagement
 let colOrder   = [...DEFAULT_COL_ORDER];
 let hiddenCols = new Set(ALL_COLS.filter(c => c.defaultHidden).map(c => c.key));
 let colWidths  = {}; // per-key width overrides, persisted in prefs
-let sortCol    = 'stepDate';
-let sortDir    = 1;
+let sortCol    = 'grandTotal';
+let sortDir    = -1; // descending — highest Grand Total Price first
 
 let selectedPMs        = null;
 let selectedEstimators = null;
@@ -178,6 +178,9 @@ let selectedStates     = null;
 let selectedTypes      = null;
 let selectedLaborTypes = null;
 let selectedProjects   = null;
+
+let fbFilterFn  = null; // active filter function (null = no filter)
+let fbRootGroup = null; // saved tree for re-opening the dialog
 
 const expandedRows = new Set();
 let viewMode = 'summary';
@@ -198,6 +201,7 @@ const colsBtn       = document.getElementById('cols-btn');
 const colsDropdown  = document.getElementById('cols-dropdown');
 const colsList      = document.getElementById('cols-list');
 const filterStrip   = document.getElementById('filter-strip');
+const filterBtn     = document.getElementById('filter-btn');
 const statusBar     = document.getElementById('status-bar');
 const noDataMsg     = document.getElementById('no-data-msg');
 const tableScroll   = document.getElementById('table-scroll');
@@ -331,11 +335,17 @@ function setViewMode(mode) {
   btnDetail.classList.toggle('active', mode === 'detail');
   dashboard.hidden   = mode !== 'summary';
   tableScroll.hidden = mode !== 'detail';
+  // Dashboard always shows content rather than the no-data message
+  if (mode === 'summary') noDataMsg.hidden = true;
 }
 function renderCurrentView() {
   if (!rawRows.length) return;
-  if (viewMode === 'summary') renderDashboard();
-  else renderTable();
+  // Hide the no-data message up front; renderTable will re-show it if
+  // detail mode has 0 filtered rows.
+  if (viewMode === 'summary') noDataMsg.hidden = true;
+  // Always render both so switching modes instantly shows current filters.
+  renderDashboard();
+  renderTable();
 }
 btnSummary.addEventListener('click', () => { setViewMode('summary'); renderDashboard(); });
 btnDetail.addEventListener('click',  () => { setViewMode('detail');  renderTable(); });
@@ -343,8 +353,6 @@ btnDetail.addEventListener('click',  () => { setViewMode('detail');  renderTable
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 function renderDashboard() {
   const rows = applyFilters(rawRows);
-  noDataMsg.hidden = true;
-  dashboard.hidden = false;
   dashboard.innerHTML = '';
 
   // ── Row 1: Key metrics ────────────────────────────────────────────────────
@@ -357,7 +365,7 @@ function renderDashboard() {
   metricsRow.className = 'dash-metrics';
   [
     { label:'Work Orders',       value: rows.length,  fmt: v => v.toLocaleString(), isVar:false },
-    { label:'Total Bid',         value: totBid,       fmt: fmtCurrency,              isVar:false },
+    { label:'Grand Total Price', value: totBid,       fmt: fmtCurrency,              isVar:false },
     { label:'Total Actual Cost', value: totAct,       fmt: fmtCurrency,              isVar:false },
     { label:'Variance',          value: totVar,       fmt: fmtCurrency,              isVar:true  },
     { label:'Variance %',        value: totVarPct,    fmt: fmtPct,                   isVar:true  },
@@ -448,7 +456,7 @@ function makeBreakdownTable(title, rows, keyFn) {
   wrap.appendChild(hdr);
 
   const tbl = document.createElement('table'); tbl.className = 'dash-breakdown-table';
-  tbl.innerHTML = `<thead><tr><th>Name</th><th class="r">WOs</th><th class="r">Bid</th><th class="r">Actual</th><th class="r">Var $</th><th class="r">Var %</th></tr></thead>`;
+  tbl.innerHTML = `<thead><tr><th>Name</th><th class="r">WOs</th><th class="r">Grand Total Price</th><th class="r">Actual</th><th class="r">Var $</th><th class="r">Var %</th></tr></thead>`;
   const tbody = document.createElement('tbody');
   for (const g of groups) {
     const tr = document.createElement('tr');
@@ -459,6 +467,22 @@ function makeBreakdownTable(title, rows, keyFn) {
   wrap.appendChild(tbl);
   return wrap;
 }
+
+// ── Filter Builder ────────────────────────────────────────────────────────────
+const fb = new FilterBuilder({
+  onApply({ rootGroup, filterFn }) {
+    fbRootGroup = rootGroup;
+    fbFilterFn  = filterFn;
+    filterBtn.classList.toggle('active', !!fbFilterFn);
+    const count = filterFn ? fb._countActive(rootGroup) : 0;
+    filterBtn.textContent = count ? `Filter (${count}) ▾` : 'Filter ▾';
+    if (rawRows.length) renderCurrentView();
+  },
+});
+
+filterBtn.addEventListener('click', () => {
+  fb.open(FilterBuilder.buildFields(rawRows), fbRootGroup);
+});
 
 // ── Filters ───────────────────────────────────────────────────────────────────
 function applyFilters(rows) {
@@ -475,6 +499,7 @@ function applyFilters(rows) {
     if (selectedStates     && !selectedStates.has(r.state))                      return false;
     if (selectedTypes      && r.woType && !selectedTypes.has(r.woType))          return false;
     if (selectedLaborTypes && !r.laborItems.some(i => selectedLaborTypes.has(i.Name))) return false;
+    if (fbFilterFn && !fbFilterFn(r)) return false;
     return true;
   });
 }
@@ -492,13 +517,18 @@ function sortRows(rows) {
 function renderTable() {
   const rows = sortRows(applyFilters(rawRows));
   if (!rows.length) {
-    tableScroll.hidden = true; noDataMsg.hidden = false;
-    noDataMsg.textContent = rawRows.length
-      ? 'No work orders match the current filters.'
-      : 'Enter your API key, set a step range and date range, then click Load Report.';
+    // Only update visible state when this view is active
+    if (viewMode === 'detail') {
+      tableScroll.hidden = true;
+      noDataMsg.hidden = false;
+      noDataMsg.textContent = 'No work orders match the current filters.';
+    }
     return;
   }
-  noDataMsg.hidden = true; tableScroll.hidden = false;
+  if (viewMode === 'detail') {
+    noDataMsg.hidden = true;
+    tableScroll.hidden = false;
+  }
   renderColgroup(); renderHeader(); renderBody(rows); renderFooter(rows);
 }
 
@@ -800,6 +830,8 @@ async function loadReport() {
   refreshBtn.disabled = true; refreshBtn.innerHTML = '<span class="spinner"></span>Loading…';
   rawRows = []; allProjects = []; dmCache = new Map();
   selectedPMs = selectedEstimators = selectedStates = selectedTypes = selectedLaborTypes = selectedProjects = null;
+  fbFilterFn = null; fbRootGroup = null;
+  filterBtn.hidden = true; filterBtn.classList.remove('active'); filterBtn.textContent = 'Filter ▾';
   expandedRows.clear();
   filterStrip.hidden = true; filterStrip.innerHTML = '';
   tableScroll.hidden = true; noDataMsg.hidden = false; noDataMsg.textContent = 'Loading…';
@@ -872,6 +904,7 @@ async function loadReport() {
 
     // 5. Render
     buildFilterStrip();
+    filterBtn.hidden = false;
     const rangeLabel = stepFrom===stepTo ? `Step ${stepFrom}` : `Steps ${stepFrom}–${stepTo}`;
     const dateRange  = (fd||td) ? ` · ${fd?fmtDate(fd.toISOString()):''} – ${td?fmtDate(td.toISOString()):''}` : '';
     setStatus(`${rawRows.length} work order${rawRows.length!==1?'s':''} in ${rangeLabel}${dateRange} · ${new Date().toLocaleTimeString()}`);

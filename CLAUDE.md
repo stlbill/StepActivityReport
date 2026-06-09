@@ -117,12 +117,14 @@ With ~150 projects, initial load takes 20–40 seconds. Filters and view toggle 
 
 ## Views
 
-**Summary (default on load):** Dashboard with three rows:
-- Row 1: Work Orders count, Total Bid, Total Actual Cost, Variance $, Variance %
-- Row 2: Labor card (Est Hrs, Act Hrs, Hrs Var, Est Cost, Act Cost, Cost Var), Material card (Est, Act, Var), Expense card (Actual only)
-- Row 3: By PM table, By Estimator table, By State table — each with WOs, Bid, Actual, Var $, Var %
+Both views stay in sync — applying a filter updates Summary and Detail simultaneously regardless of which is active.
 
-**Detail:** Full sortable/resizable/reorderable table with expandable labor rows per WO.
+**Summary (default on load):** Dashboard with three rows:
+- Row 1: Work Orders count, Grand Total Price, Total Actual Cost, Variance $, Variance %
+- Row 2: Labor card (Est Hrs, Act Hrs, Hrs Var, Est Cost, Act Cost, Cost Var), Material card (Est, Act, Var), Expense card (Actual only)
+- Row 3: By PM table, By Estimator table, By State table — each with WOs, Grand Total Price, Actual, Var $, Var %
+
+**Detail:** Full sortable/resizable/reorderable table with expandable labor rows per WO. Default sort: Grand Total Price descending.
 
 Toggle with Summary / Detail buttons shown after load.
 
@@ -132,13 +134,26 @@ Toggle with Summary / Detail buttons shown after load.
 - **Reorder columns** — drag column header left or right
 - **Resize columns** — drag right edge of header; double-click handle to reset
 - **Columns ▾** — show/hide individual columns
-- **Filter strip** — dropdowns for Project, Type, PM, Estimator, State, Labor Type (built after load). Labor Type filter excludes WOs with no matching labor items, keeping WO count and Total Bid consistent with the labor card.
+- **Filter strip** — dropdowns for Project, Type, PM, Estimator, State, Labor Type (built after load)
+- **Filter Builder** — Innergy-style nested group filter dialog (see `shared/filter-builder.js`). Opens via **Filter ▾** button after load. Supports And / Or / Not And / Not Or logic, arbitrarily nested groups, and Equals / Not Equals / Contains operators. Dialog is draggable and resizable; position and size persist per session via `sessionStorage`.
 - **Search** — live text filter on project name/number and WO name/number
 - **Exclude** — live text filter that hides WOs/projects whose name or number matches; sits next to Search in the top bar. Cleared by Reset.
 - **Expand row** — click any WO row to see per-labor-type breakdown
 - **Reset** — clears Search, Exclude, and date inputs (does not reload data or reset filter strip dropdowns)
 
+## Shared Components
+
+`server.js` serves `../shared/` at `/shared`, so the browser can load:
+
+| File | Purpose |
+|---|---|
+| `shared/filter-builder.js` | `FilterBuilder` class — nested group filter dialog |
+| `shared/filter-builder.css` | Styles for the filter dialog |
+
+`FilterBuilder.buildFields(rawRows)` builds field definitions (PM, Estimator, State, Type, Project) from loaded data. Fields, operators, and values are all chip-based dropdowns. `onApply` returns `{ rootGroup, filterFn }`.
+
 ## Column Preferences
 
-Stored in localStorage under `sar_prefs` (version 7):
+Stored in localStorage under `sar_prefs` (version 8):
 - `colOrder`, `hiddenCols`, `colWidths`, `sortCol`, `sortDir`
+- Version bump from 7→8 changed default sort to Grand Total Price descending
