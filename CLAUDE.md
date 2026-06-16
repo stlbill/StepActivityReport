@@ -58,6 +58,8 @@ railway up --service step-activity-report
 
 **Volume:** mounted at `/app/data` — keeps `apikeys.json` across redeploys.
 
+**After a `git pull` or rebase:** always run `railway up` again — Railway holds the files from the last upload, not from GitHub, so pulling remote commits doesn't update the live deployment automatically.
+
 ## Innergy Endpoints Used
 
 | Endpoint | Purpose |
