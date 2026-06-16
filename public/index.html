@@ -28,10 +28,7 @@
         <input type="number" id="step-to" value="19" min="1" max="99">
       </div>
 
-      <div class="control-group">
-        <label class="date-label">From <input type="date" id="date-from"></label>
-        <label class="date-label">To <input type="date" id="date-to"></label>
-      </div>
+      <div class="control-group" id="load-date-group"></div>
 
       <div class="control-group">
         <input type="text" id="search-input" placeholder="Search project / WO…" autocomplete="off">
@@ -63,6 +60,7 @@
   <!-- ── View toggle ── -->
   <div id="view-bar" hidden>
     <button id="btn-summary" class="view-btn active">Summary</button>
+    <button id="btn-combined" class="view-btn">Summary/Detail</button>
     <button id="btn-detail" class="view-btn">Detail</button>
   </div>
 

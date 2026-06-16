@@ -179,6 +179,10 @@ let selectedTypes      = null;
 let selectedLaborTypes = null;
 let selectedProjects   = null;
 
+let resultDateRanges = []; // [{from, to, label}] — OR'd together
+let loadDateRanges   = []; // same shape, used by buildRows at load time
+let _clearResultDate = null;
+
 let fbFilterFn  = null; // active filter function (null = no filter)
 let fbRootGroup = null; // saved tree for re-opening the dialog
 
@@ -191,8 +195,6 @@ const saveKeyBtn    = document.getElementById('save-key-btn');
 const keyStatus     = document.getElementById('key-status');
 const stepFromInput = document.getElementById('step-from');
 const stepToInput   = document.getElementById('step-to');
-const dateFrom      = document.getElementById('date-from');
-const dateTo        = document.getElementById('date-to');
 const searchInput   = document.getElementById('search-input');
 const excludeInput  = document.getElementById('exclude-input');
 const refreshBtn    = document.getElementById('refresh-btn');
@@ -212,6 +214,7 @@ const mainTfoot     = document.getElementById('main-tfoot');
 const viewBar       = document.getElementById('view-bar');
 const dashboard     = document.getElementById('dashboard');
 const btnSummary    = document.getElementById('btn-summary');
+const btnCombined   = document.getElementById('btn-combined');
 const btnDetail     = document.getElementById('btn-detail');
 
 // ── Prefs ─────────────────────────────────────────────────────────────────────
@@ -269,9 +272,9 @@ function getStepEntryDate(wo, targetIdx) {
   return prevStep.ActualDate || null;
 }
 
-// Historical filter: WOs that ENTERED any step in [stepFrom,stepTo] during [fromDate,toDate].
+// Historical filter: WOs that ENTERED any step in [stepFrom,stepTo] during any of dateRanges.
 // Includes WOs that have since moved past those steps.
-function buildRows(stepFrom, stepTo, fromDate, toDate) {
+function buildRows(stepFrom, stepTo, dateRanges) {
   const rows = [];
   for (const [projectId, wos] of dmCache) {
     const project = allProjects.find(p => p.Id === projectId);
@@ -292,9 +295,10 @@ function buildRows(stepFrom, stepTo, fromDate, toDate) {
       const entryStr = getStepEntryDate(wo, firstStep.n);
       if (!entryStr) continue;
 
-      const d = toD(entryStr);
-      if (fromDate && d < fromDate) continue;
-      if (toDate   && d > toDate)   continue;
+      if (dateRanges.length) {
+        const d = toD(entryStr);
+        if (!d || !dateRanges.some(r => (!r.from || d >= r.from) && (!r.to || d <= r.to))) continue;
+      }
 
       const matched = { idx: firstStep.n, name: firstStep.step.Name || '', entryStr };
       if (!matched) continue;
@@ -331,24 +335,27 @@ function buildRows(stepFrom, stepTo, fromDate, toDate) {
 // ── View toggle ───────────────────────────────────────────────────────────────
 function setViewMode(mode) {
   viewMode = mode;
-  btnSummary.classList.toggle('active', mode === 'summary');
-  btnDetail.classList.toggle('active', mode === 'detail');
-  dashboard.hidden   = mode !== 'summary';
-  tableScroll.hidden = mode !== 'detail';
-  // Dashboard always shows content rather than the no-data message
-  if (mode === 'summary') noDataMsg.hidden = true;
+  btnSummary.classList.toggle('active',  mode === 'summary');
+  btnCombined.classList.toggle('active', mode === 'combined');
+  btnDetail.classList.toggle('active',   mode === 'detail');
+  // Remove HTML hidden attrs so style.display takes full control (hidden attr persists across toggles)
+  dashboard.removeAttribute('hidden');
+  tableScroll.removeAttribute('hidden');
+  dashboard.style.display   = (mode === 'detail')  ? 'none' : 'flex';
+  tableScroll.style.display = (mode === 'summary') ? 'none' : '';
+  document.getElementById('table-wrap').classList.toggle('combined-mode', mode === 'combined');
+  if (mode !== 'detail') noDataMsg.hidden = true;
 }
 function renderCurrentView() {
   if (!rawRows.length) return;
-  // Hide the no-data message up front; renderTable will re-show it if
-  // detail mode has 0 filtered rows.
-  if (viewMode === 'summary') noDataMsg.hidden = true;
+  if (viewMode !== 'detail') noDataMsg.hidden = true;
   // Always render both so switching modes instantly shows current filters.
   renderDashboard();
   renderTable();
 }
-btnSummary.addEventListener('click', () => { setViewMode('summary'); renderDashboard(); });
-btnDetail.addEventListener('click',  () => { setViewMode('detail');  renderTable(); });
+btnSummary.addEventListener('click',  () => { setViewMode('summary');  renderDashboard(); });
+btnCombined.addEventListener('click', () => { setViewMode('combined'); renderDashboard(); renderTable(); });
+btnDetail.addEventListener('click',   () => { setViewMode('detail');   renderTable(); });
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 function renderDashboard() {
@@ -499,6 +506,12 @@ function applyFilters(rows) {
     if (selectedStates     && !selectedStates.has(r.state))                      return false;
     if (selectedTypes      && r.woType && !selectedTypes.has(r.woType))          return false;
     if (selectedLaborTypes && !r.laborItems.some(i => selectedLaborTypes.has(i.Name))) return false;
+    if (resultDateRanges.length) {
+      const d = r.stepStartDate ? toD(r.stepStartDate) : null;
+      if (!d || !resultDateRanges.some(rng =>
+        (!rng.from || d >= rng.from) && (!rng.to || d <= rng.to)
+      )) return false;
+    }
     if (fbFilterFn && !fbFilterFn(r)) return false;
     return true;
   });
@@ -517,17 +530,18 @@ function sortRows(rows) {
 function renderTable() {
   const rows = sortRows(applyFilters(rawRows));
   if (!rows.length) {
-    // Only update visible state when this view is active
-    if (viewMode === 'detail') {
-      tableScroll.hidden = true;
+    if (viewMode === 'detail' || viewMode === 'combined') {
+      tableScroll.removeAttribute('hidden');
+      tableScroll.style.display = 'none';
       noDataMsg.hidden = false;
       noDataMsg.textContent = 'No work orders match the current filters.';
     }
     return;
   }
-  if (viewMode === 'detail') {
+  if (viewMode === 'detail' || viewMode === 'combined') {
     noDataMsg.hidden = true;
-    tableScroll.hidden = false;
+    tableScroll.removeAttribute('hidden');
+    tableScroll.style.display = '';
   }
   renderColgroup(); renderHeader(); renderBody(rows); renderFooter(rows);
 }
@@ -742,8 +756,9 @@ colsBtn.addEventListener('click', e => {
 // ── Filter strip ──────────────────────────────────────────────────────────────
 function buildFilterStrip() {
   filterStrip.innerHTML = '';
+  _clearResultDate = null;
   const defs = [
-    { label:'Project',    values:[...new Set(rawRows.map(r=>r.project.Name).filter(Boolean))].sort(),  setter:v=>{selectedProjects=v;} },
+    { label:'Project',    values:[...new Set(rawRows.map(r=>r.project.Name).filter(Boolean))].sort(),  setter:v=>{selectedProjects=v;},   searchable:true },
     { label:'Type',       values:[...new Set(rawRows.map(r=>r.woType).filter(Boolean))].sort(),        setter:v=>{selectedTypes=v;} },
     { label:'PM',         values:[...new Set(rawRows.map(r=>r.pm).filter(Boolean))].sort(),            setter:v=>{selectedPMs=v;} },
     { label:'Estimator',  values:[...new Set(rawRows.map(r=>r.estimator).filter(Boolean))].sort(),     setter:v=>{selectedEstimators=v;} },
@@ -751,16 +766,38 @@ function buildFilterStrip() {
     { label:'Labor Type', values:[...new Set(rawRows.flatMap(r=>r.laborItems.map(i=>i.Name).filter(Boolean)))].sort(), setter:v=>{selectedLaborTypes=v;} },
   ];
   for (const f of defs) {
-    if (f.values.length > 0) filterStrip.appendChild(makeFilterDropdown(f.label, f.values, f.setter));
+    if (f.values.length > 0) filterStrip.appendChild(makeFilterDropdown(f.label, f.values, f.setter, { searchable: !!f.searchable }));
   }
+  const { element: rdEl, clear: clearRd } = makeDateFilterDropdown('Entry Date', ranges => {
+    resultDateRanges = ranges;
+    if (rawRows.length) renderCurrentView();
+  });
+  _clearResultDate = clearRd;
+  filterStrip.appendChild(rdEl);
   filterStrip.hidden = false;
 }
 
-function makeFilterDropdown(label, options, setter) {
+function makeFilterDropdown(label, options, setter, { searchable = false } = {}) {
   let selected = null;
+  let visibleOptions = options;
   const wrap = document.createElement('div'); wrap.className = 'filter-wrap';
   const btn  = document.createElement('button'); btn.className = 'filter-btn'; btn.textContent = `${label} ▾`;
-  const panel = document.createElement('div'); panel.className = 'dropdown-panel filter-panel';
+  const panel = document.createElement('div');
+  panel.className = 'dropdown-panel filter-panel' + (searchable ? ' filter-panel-search' : '');
+
+  if (searchable) {
+    const searchBox = document.createElement('input');
+    searchBox.type = 'text'; searchBox.className = 'filter-search-input';
+    searchBox.placeholder = `Search ${label}…`;
+    searchBox.addEventListener('input', () => {
+      const q = searchBox.value.trim().toLowerCase();
+      visibleOptions = q ? options.filter(o => o.toLowerCase().includes(q)) : options;
+      rebuildList();
+    });
+    searchBox.addEventListener('click', e => e.stopPropagation());
+    panel.appendChild(searchBox);
+  }
+
   const acts  = document.createElement('div'); acts.className = 'dropdown-actions';
   ['All','None'].forEach(text => {
     const b = document.createElement('button'); b.textContent = text;
@@ -778,7 +815,7 @@ function makeFilterDropdown(label, options, setter) {
   }
   function rebuildList() {
     listEl.innerHTML = '';
-    for (const opt of options) {
+    for (const opt of visibleOptions) {
       const item = document.createElement('label'); item.className = 'labor-item';
       const cb   = document.createElement('input'); cb.type='checkbox'; cb.checked=!selected||selected.has(opt);
       cb.addEventListener('change', () => {
@@ -797,6 +834,143 @@ function makeFilterDropdown(label, options, setter) {
     if (panel.classList.toggle('open')) rebuildList();
   });
   wrap.appendChild(btn); wrap.appendChild(panel); return wrap;
+}
+
+// Reusable date-range picker — multi-select, OR logic.
+// btnLabel: default button text. onRangesChange([{from,to,label}]) fires on every change.
+// Returns { element, clear }.
+function makeDateFilterDropdown(btnLabel, onRangesChange) {
+  const today   = new Date(); today.setHours(0, 0, 0, 0);
+  const curYear = today.getFullYear();
+  const MONTHS  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+  const eod     = d => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+
+  // Declare custom inputs early so clearAll() can reference them
+  const fromCustInput = document.createElement('input');
+  fromCustInput.type = 'date'; fromCustInput.className = 'edf-date-input';
+  fromCustInput.addEventListener('click', e => e.stopPropagation());
+  const toCustInput = document.createElement('input');
+  toCustInput.type = 'date'; toCustInput.className = 'edf-date-input';
+  toCustInput.addEventListener('click', e => e.stopPropagation());
+
+  const wrap  = document.createElement('div'); wrap.className = 'filter-wrap';
+  const btn   = document.createElement('button'); btn.className = 'filter-btn';
+  const panel = document.createElement('div'); panel.className = 'dropdown-panel filter-panel edf-panel';
+
+  let activeRanges = []; // [{from, to, label, chipEl}]
+
+  function updateBtn() {
+    if (!activeRanges.length) {
+      btn.textContent = btnLabel + ' ▾'; btn.classList.remove('filtered');
+    } else if (activeRanges.length === 1) {
+      btn.textContent = activeRanges[0].label + ' ▾'; btn.classList.add('filtered');
+    } else {
+      btn.textContent = activeRanges.length + ' selected ▾'; btn.classList.add('filtered');
+    }
+  }
+
+  function notify() {
+    onRangesChange(activeRanges.map(r => ({ from: r.from, to: r.to, label: r.label })));
+  }
+
+  function clearAll() {
+    activeRanges.forEach(r => r.chipEl && r.chipEl.classList.remove('edf-active'));
+    activeRanges = [];
+    fromCustInput.value = ''; toCustInput.value = '';
+    updateBtn(); notify();
+    panel.classList.remove('open');
+  }
+
+  function toggleChip(from, to, label, chipEl) {
+    const idx = activeRanges.findIndex(r => r.label === label);
+    if (idx >= 0) {
+      activeRanges.splice(idx, 1);
+      chipEl.classList.remove('edf-active');
+    } else {
+      activeRanges.push({ from: from ? new Date(from) : null, to: to ? eod(to) : null, label, chipEl });
+      chipEl.classList.add('edf-active');
+    }
+    updateBtn(); notify();
+  }
+
+  function chip(display, from, to, rangeLabel) {
+    const label = rangeLabel || display;
+    const el = document.createElement('button');
+    el.className = 'edf-chip'; el.type = 'button'; el.textContent = display;
+    el.addEventListener('click', e => { e.stopPropagation(); toggleChip(from, to, label, el); });
+    return el;
+  }
+
+  // ── Clear ──────────────────────────────────────────────────────────────────
+  const clearBtn = document.createElement('button');
+  clearBtn.className = 'edf-clear-btn'; clearBtn.type = 'button'; clearBtn.textContent = '✕ Clear filter';
+  clearBtn.addEventListener('click', e => { e.stopPropagation(); clearAll(); });
+  panel.appendChild(clearBtn);
+
+  // ── Rolling ────────────────────────────────────────────────────────────────
+  const rollSec   = document.createElement('div'); rollSec.className = 'edf-section';
+  const rollTitle = document.createElement('div'); rollTitle.className = 'edf-section-title'; rollTitle.textContent = 'Rolling';
+  const rollChips = document.createElement('div'); rollChips.className = 'edf-chips';
+  [['Last 7 Days', 6], ['Last 30 Days', 29], ['Last 90 Days', 89]].forEach(([label, back]) => {
+    rollChips.appendChild(chip(label, addDays(today, -back), today));
+  });
+  rollSec.appendChild(rollTitle); rollSec.appendChild(rollChips); panel.appendChild(rollSec);
+
+  // ── Year sections (current + 2 prior) ─────────────────────────────────────
+  for (let yr = curYear; yr >= curYear - 2; yr--) {
+    const sec    = document.createElement('div'); sec.className = 'edf-year-section';
+    const hdr    = document.createElement('div'); hdr.className = 'edf-year-header';
+    const yrLbl  = document.createElement('span'); yrLbl.className = 'edf-year-label'; yrLbl.textContent = yr;
+    const qChips = document.createElement('div'); qChips.className = 'edf-q-chips';
+    [1,2,3,4].forEach(q => {
+      qChips.appendChild(chip(`Q${q}`, new Date(yr,(q-1)*3,1), new Date(yr,q*3,0), `Q${q} ${yr}`));
+    });
+    hdr.appendChild(yrLbl); hdr.appendChild(qChips); sec.appendChild(hdr);
+    const mGrid = document.createElement('div'); mGrid.className = 'edf-m-grid';
+    MONTHS.forEach((m, mi) => {
+      mGrid.appendChild(chip(m, new Date(yr,mi,1), new Date(yr,mi+1,0), `${m} ${yr}`));
+    });
+    sec.appendChild(mGrid); panel.appendChild(sec);
+  }
+
+  // ── Custom range ───────────────────────────────────────────────────────────
+  const custDiv   = document.createElement('div'); custDiv.className = 'edf-custom';
+  const custTitle = document.createElement('div'); custTitle.className = 'edf-section-title'; custTitle.textContent = 'Custom Range';
+  const fromRow = document.createElement('div'); fromRow.className = 'edf-custom-row';
+  const fromLbl = document.createElement('span'); fromLbl.className = 'edf-custom-lbl'; fromLbl.textContent = 'From';
+  const toRow   = document.createElement('div'); toRow.className   = 'edf-custom-row';
+  const toLbl   = document.createElement('span'); toLbl.className   = 'edf-custom-lbl'; toLbl.textContent   = 'To';
+  fromRow.appendChild(fromLbl); fromRow.appendChild(fromCustInput);
+  toRow.appendChild(toLbl);     toRow.appendChild(toCustInput);
+  const applyBtn = document.createElement('button');
+  applyBtn.type = 'button'; applyBtn.className = 'edf-apply-btn'; applyBtn.textContent = 'Apply';
+  applyBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const f = fromCustInput.value ? new Date(fromCustInput.value + 'T00:00:00') : null;
+    const t = toCustInput.value   ? new Date(toCustInput.value   + 'T00:00:00') : null;
+    if (!f && !t) return;
+    const label = (fromCustInput.value ? fmtDate(fromCustInput.value) : '') + ' – ' + (toCustInput.value ? fmtDate(toCustInput.value) : '');
+    // Replace any existing custom entry
+    const ci = activeRanges.findIndex(r => r.label.includes(' – '));
+    if (ci >= 0) activeRanges.splice(ci, 1);
+    activeRanges.push({ from: f, to: t ? eod(t) : null, label, chipEl: null });
+    updateBtn(); notify();
+    panel.classList.remove('open');
+  });
+  custDiv.appendChild(custTitle); custDiv.appendChild(fromRow); custDiv.appendChild(toRow); custDiv.appendChild(applyBtn);
+  panel.appendChild(custDiv);
+
+  // ── Button toggle ──────────────────────────────────────────────────────────
+  updateBtn();
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    document.querySelectorAll('.filter-panel.open, #cols-dropdown.open').forEach(p => { if (p !== panel) p.classList.remove('open'); });
+    panel.classList.toggle('open');
+  });
+
+  wrap.appendChild(btn); wrap.appendChild(panel);
+  return { element: wrap, clear: clearAll };
 }
 
 document.addEventListener('click', e => {
@@ -830,6 +1004,7 @@ async function loadReport() {
   refreshBtn.disabled = true; refreshBtn.innerHTML = '<span class="spinner"></span>Loading…';
   rawRows = []; allProjects = []; dmCache = new Map();
   selectedPMs = selectedEstimators = selectedStates = selectedTypes = selectedLaborTypes = selectedProjects = null;
+  resultDateRanges = []; _clearResultDate = null;
   fbFilterFn = null; fbRootGroup = null;
   filterBtn.hidden = true; filterBtn.classList.remove('active'); filterBtn.textContent = 'Filter ▾';
   expandedRows.clear();
@@ -838,8 +1013,6 @@ async function loadReport() {
 
   const stepFrom = parseInt(stepFromInput.value, 10) || 17;
   const stepTo   = parseInt(stepToInput.value,   10) || 19;
-  const fd = dateFrom.value ? new Date(dateFrom.value + 'T00:00:00') : null;
-  const td = dateTo.value   ? new Date(dateTo.value   + 'T23:59:59') : null;
 
   try {
     // 1. Project list
@@ -862,12 +1035,12 @@ async function loadReport() {
         setStatus(`Loading date management… ${dmLoaded} / ${allProjects.length}`);
     }, 8);
 
-    // 3. Historical filter: WOs that entered step N in [stepFrom,stepTo] during [fd,td]
-    rawRows = buildRows(stepFrom, stepTo, fd, td);
-    console.log(`[SAR] buildRows → ${rawRows.length} rows | steps ${stepFrom}–${stepTo} | fd=${fd} td=${td}`);
+    // 3. Historical filter: WOs that entered step N in [stepFrom,stepTo] during loadDateRanges
+    rawRows = buildRows(stepFrom, stepTo, loadDateRanges);
+    console.log(`[SAR] buildRows → ${rawRows.length} rows | steps ${stepFrom}–${stepTo} | dateRanges=${loadDateRanges.length}`);
 
     if (!rawRows.length) {
-      const range = fd||td ? ` during the selected date range` : '';
+      const range = loadDateRanges.length ? ` during the selected date range` : '';
       setStatus(`No work orders found in steps ${stepFrom}–${stepTo}${range}.`);
       noDataMsg.textContent = 'No work orders found for these criteria.';
       refreshBtn.disabled = false; refreshBtn.textContent = 'Load Report'; return;
@@ -906,7 +1079,7 @@ async function loadReport() {
     buildFilterStrip();
     filterBtn.hidden = false;
     const rangeLabel = stepFrom===stepTo ? `Step ${stepFrom}` : `Steps ${stepFrom}–${stepTo}`;
-    const dateRange  = (fd||td) ? ` · ${fd?fmtDate(fd.toISOString()):''} – ${td?fmtDate(td.toISOString()):''}` : '';
+    const dateRange  = loadDateRanges.length ? ' · ' + loadDateRanges.map(r => r.label).join(', ') : '';
     setStatus(`${rawRows.length} work order${rawRows.length!==1?'s':''} in ${rangeLabel}${dateRange} · ${new Date().toLocaleTimeString()}`);
     viewBar.hidden = false;
     setViewMode('summary');
@@ -947,7 +1120,8 @@ signoutBtn.addEventListener('click', () => {
 searchInput.addEventListener('input',  () => { if (rawRows.length) renderCurrentView(); });
 excludeInput.addEventListener('input', () => { if (rawRows.length) renderCurrentView(); });
 resetBtn.addEventListener('click', () => {
-  searchInput.value = ''; excludeInput.value = ''; dateFrom.value = ''; dateTo.value = '';
+  searchInput.value = ''; excludeInput.value = '';
+  if (_clearResultDate) _clearResultDate();
   if (rawRows.length) renderCurrentView();
   else noDataMsg.textContent = 'Enter your API key, set a step range and date range, then click Load Report.';
 });
@@ -958,6 +1132,12 @@ function setStatus(msg) { statusBar.textContent = msg; }
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadPrefs();
 buildColsDropdown();
+
+// Load-date filter in setup strip
+(function() {
+  const { element: el } = makeDateFilterDropdown('Load Date', ranges => { loadDateRanges = ranges; });
+  document.getElementById('load-date-group').appendChild(el);
+}());
 
 (async () => {
   try {

@@ -582,6 +582,178 @@ td.c { text-align: center; }
 .dash-breakdown-table td.var-pos { color: #1b6e22; font-weight: 600; }
 .dash-breakdown-table td.var-neg { color: #b71c1c; font-weight: 600; }
 
+/* ── Combined view layout ── */
+#table-wrap.combined-mode #dashboard {
+  flex: 0 0 auto;
+  max-height: 40vh;
+  overflow-y: auto;
+  border-bottom: 2px solid #c0ccdc;
+}
+#table-wrap.combined-mode #table-scroll {
+  flex: 1;
+  min-height: 220px;
+}
+
+/* ── Entry Date Filter Panel ── */
+.edf-panel {
+  left: 0;
+  right: auto;
+  width: 284px;
+  max-height: 520px;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.edf-clear-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 12px;
+  height: auto;
+  background: #f0f4fa;
+  color: #668;
+  font-size: 11px;
+  font-weight: 500;
+  border-bottom: 1px solid #dce8f0;
+  border-radius: 0;
+}
+.edf-clear-btn:hover { background: #ffe8e8; color: #b33; }
+
+.edf-section {
+  padding: 8px 10px 8px;
+  border-bottom: 1px solid #e8eef8;
+}
+
+.edf-year-section {
+  padding: 8px 10px 8px;
+  border-bottom: 1px solid #e8eef8;
+}
+
+.edf-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: #8899bb;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+.edf-year-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.edf-year-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1b3a6b;
+  white-space: nowrap;
+  min-width: 32px;
+}
+
+.edf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.edf-q-chips {
+  display: flex;
+  gap: 4px;
+}
+
+.edf-m-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 3px;
+}
+
+.edf-chip {
+  padding: 3px 7px;
+  height: auto;
+  border: 1px solid #c0d0e8;
+  border-radius: 3px;
+  background: #f0f4fa;
+  color: #334;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+.edf-chip:hover { background: #dce8f8; border-color: #8aaad0; }
+.edf-chip.edf-active {
+  background: #c8a84b;
+  border-color: #a88830;
+  color: #1b3a6b;
+  font-weight: 700;
+}
+
+.edf-custom {
+  padding: 8px 10px 12px;
+}
+
+.edf-custom-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.edf-custom-lbl {
+  font-size: 11px;
+  color: #556;
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.edf-date-input {
+  flex: 1;
+  padding: 3px 6px;
+  border: 1px solid #b0c4de;
+  border-radius: 3px;
+  background: #f8faff;
+  font-size: 11px;
+  color: #1a2a40;
+  height: 26px;
+}
+.edf-date-input:focus { outline: none; border-color: #4a6490; }
+
+.edf-apply-btn {
+  display: block;
+  margin-top: 6px;
+  margin-left: auto;
+  padding: 0 14px;
+  height: 26px;
+  background: #1b3a6b;
+  color: #c8a84b;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 3px;
+}
+.edf-apply-btn:hover { background: #254e95; }
+
+/* ── Project dropdown search box ── */
+.filter-panel-search {
+  width: 240px;
+}
+.filter-search-input {
+  display: block;
+  width: calc(100% - 16px);
+  margin: 6px 8px 2px;
+  padding: 4px 8px;
+  border: 1px solid #b0c4de;
+  border-radius: 3px;
+  font-size: 12px;
+  background: #f8faff;
+  color: #1a2a40;
+  height: 26px;
+  box-sizing: border-box;
+}
+.filter-search-input:focus { outline: none; border-color: #4a6490; }
+
 /* ── Print ── */
 @media print {
   #setup-strip, #filter-strip, #status-bar { display: none !important; }
