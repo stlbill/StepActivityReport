@@ -10,7 +10,12 @@ Historical bid-vs-actual report for work orders that entered Innergy workflow st
 ## Running Locally
 
 ```
-npm start   # http://localhost:3003
+node server.js   # http://localhost:3003
+```
+
+Or from the monorepo root to start all reports at once:
+```
+node start-all.js
 ```
 
 No auth enforced locally (AUTH_USERS not set in dev). API key stored in browser localStorage.
@@ -111,7 +116,7 @@ Cost fields return `{ Value, CurrencyCode }` objects — always pass through `ex
 
 1. Fetch all projects (`/api/projects`)
 2. Fetch `dateManagement` for **all** projects — 8 concurrent, shows progress counter
-3. `buildRows()` — historical filter: WOs whose entry date into the first in-range step falls in [fromDate, toDate]
+3. `buildRows()` — historical filter: WOs whose entry date into the first in-range step falls in any of `loadDateRanges` (OR logic). Empty array = no date filter.
 4. Fetch `workOrders` for **matched projects only** — financial fields + WO type
 5. Build filter strip → show dashboard (summary view by default)
 
@@ -119,16 +124,20 @@ With ~150 projects, initial load takes 20–40 seconds. Filters and view toggle 
 
 ## Views
 
-Both views stay in sync — applying a filter updates Summary and Detail simultaneously regardless of which is active.
+All three views stay in sync — applying any filter updates all views simultaneously.
 
-**Summary (default on load):** Dashboard with three rows:
+Three view buttons appear after load:
+
+**Summary (default):** Dashboard with three rows:
 - Row 1: Work Orders count, Grand Total Price, Total Actual Cost, Variance $, Variance %
 - Row 2: Labor card (Est Hrs, Act Hrs, Hrs Var, Est Cost, Act Cost, Cost Var), Material card (Est, Act, Var), Expense card (Actual only)
 - Row 3: By PM table, By Estimator table, By State table — each with WOs, Grand Total Price, Actual, Var $, Var %
 
+**Summary/Detail:** Both panels stacked. Dashboard is capped at 40vh and scrolls within itself so the table is always visible below.
+
 **Detail:** Full sortable/resizable/reorderable table with expandable labor rows per WO. Default sort: Grand Total Price descending.
 
-Toggle with Summary / Detail buttons shown after load.
+**Implementation note:** `#dashboard` has `display:flex` in CSS which overrides the HTML `hidden` attribute. View switching uses `style.display` directly (not the `hidden` attribute) to avoid this.
 
 ## UI Features
 
@@ -136,12 +145,30 @@ Toggle with Summary / Detail buttons shown after load.
 - **Reorder columns** — drag column header left or right
 - **Resize columns** — drag right edge of header; double-click handle to reset
 - **Columns ▾** — show/hide individual columns
-- **Filter strip** — dropdowns for Project, Type, PM, Estimator, State, Labor Type (built after load)
+- **Load Date ▾** (setup strip) — multi-select date panel: rolling (Last 7/30/90 Days), quarters, months, custom range. Selected ranges are OR'd. Controls which WOs `buildRows()` includes; requires clicking Load Report to apply. Preserves selection across loads.
+- **Filter strip** — dropdowns for Project, Type, PM, Estimator, State, Labor Type, and Entry Date (all built after load)
+  - **Project** dropdown has a search box at the top for quick filtering
+  - **Entry Date** uses the same multi-select date panel as Load Date; filters client-side instantly without reloading
 - **Filter Builder** — Innergy-style nested group filter dialog (see `shared/filter-builder.js`). Opens via **Filter ▾** button after load. Supports And / Or / Not And / Not Or logic, arbitrarily nested groups, and Equals / Not Equals / Contains operators. Dialog is draggable and resizable; position and size persist per session via `sessionStorage`.
 - **Search** — live text filter on project name/number and WO name/number
 - **Exclude** — live text filter that hides WOs/projects whose name or number matches; sits next to Search in the top bar. Cleared by Reset.
 - **Expand row** — click any WO row to see per-labor-type breakdown
-- **Reset** — clears Search, Exclude, and date inputs (does not reload data or reset filter strip dropdowns)
+- **Reset** — clears Search, Exclude, and Entry Date result filter (does not reload data or reset other filter strip dropdowns)
+
+## Date Filter Panel (`makeDateFilterDropdown`)
+
+Reusable function used by both Load Date (setup strip) and Entry Date (filter strip).
+
+```js
+const { element, clear } = makeDateFilterDropdown(btnLabel, onRangesChange);
+// onRangesChange([{from, to, label}]) fires on every toggle
+```
+
+- Chips toggle on/off (gold = selected); panel stays open for multi-select
+- Button shows single label if 1 selected, "N selected" for multiples
+- Rolling ranges use `today` captured at panel-build time (i.e., at load)
+- Custom range replaces any previous custom entry (identified by `label.includes(' – ')`)
+- `clear()` deselects all chips and clears custom inputs
 
 ## Shared Components
 
