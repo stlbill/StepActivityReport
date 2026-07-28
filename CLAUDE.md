@@ -151,6 +151,7 @@ Three view buttons appear after load:
 - **Filter strip** — dropdowns for Project, Type, PM, Estimator, State, Labor Type, and Entry Date (all built after load)
   - **Project** dropdown has a search box at the top for quick filtering
   - **Entry Date** uses the same multi-select date panel as Load Date; filters client-side instantly without reloading
+  - **Labor Type** only excludes WOs that have labor items but none matching the selection — WOs with zero labor items always pass through, regardless of which labor types are selected
 - **Filter Builder** — Innergy-style nested group filter dialog (see `shared/filter-builder.js`). Opens via **Filter ▾** button after load. Supports And / Or / Not And / Not Or logic, arbitrarily nested groups, and Equals / Not Equals / Contains operators. Dialog is draggable and resizable; position and size persist per session via `sessionStorage`.
 - **Search** — live text filter on project name/number and WO name/number
 - **Exclude** — live text filter that hides WOs/projects whose name or number matches; sits next to Search in the top bar. Cleared by Reset.
