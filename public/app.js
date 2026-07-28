@@ -505,7 +505,7 @@ function applyFilters(rows) {
     if (selectedEstimators && !selectedEstimators.has(r.estimator))              return false;
     if (selectedStates     && !selectedStates.has(r.state))                      return false;
     if (selectedTypes      && r.woType && !selectedTypes.has(r.woType))          return false;
-    if (selectedLaborTypes && !r.laborItems.some(i => selectedLaborTypes.has(i.Name))) return false;
+    if (selectedLaborTypes && r.laborItems.length && !r.laborItems.some(i => selectedLaborTypes.has(i.Name))) return false;
     if (resultDateRanges.length) {
       const d = r.stepStartDate ? toD(r.stepStartDate) : null;
       if (!d || !resultDateRanges.some(rng =>
